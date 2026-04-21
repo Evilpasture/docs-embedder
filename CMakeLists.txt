@@ -3,7 +3,7 @@ project(docs_embedder LANGUAGES C)
 
 # Ensure C23 standard is used
 set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIRED OFF)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -14,6 +14,13 @@ find_package(Python3 REQUIRED COMPONENTS Development.Module)
 add_library(docs_embedder STATIC 
     src/docs-embedder/docs_embedder.c 
 )
+
+# Yet again, CMake doesn't know how to apply flags to Clang-CL.
+if(NOT MSVC)
+    target_compile_features(fast_capi_core PRIVATE c_std_23)
+else()
+    target_compile_options(fast_capi_core PRIVATE $<$<C_COMPILER_ID:Clang>:/clang:-std=c23>)
+endif()
 
 # Link against Python headers
 # Use 'PRIVATE' for the link, but 'INTERFACE' for the include so parent projects get the headers
