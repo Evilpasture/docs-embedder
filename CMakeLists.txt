@@ -7,28 +7,32 @@ set(CMAKE_C_STANDARD_REQUIRED OFF)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Find Python Development headers
-find_package(Python3 REQUIRED COMPONENTS Development.Module)
-
-# Define the static library
-add_library(docs_embedder STATIC 
-    src/docs-embedder/docs_embedder.c 
-)
-
-# Yet again, CMake doesn't know how to apply flags to Clang-CL.
-if(NOT MSVC)
-    target_compile_features(fast_capi_core PRIVATE c_std_23)
-else()
-    target_compile_options(fast_capi_core PRIVATE $<$<C_COMPILER_ID:Clang>:/clang:-std=c23>)
+# 1. Dependency Discovery
+# Guard against redundant and potentially broken lookups in parent builds.
+# We always find the Interpreter alongside the Development.Module component
+# to ensure CMake resolves the correct virtual environment path on Windows CI.
+if(NOT TARGET Python::Module)
+    find_package(Python REQUIRED COMPONENTS Interpreter Development.Module QUIET)
 endif()
 
-# Link against Python headers
+# Define the static library
+add_library(docs_embedder STATIC
+    src/docs-embedder/docs_embedder.c
+)
+
+if(NOT MSVC)
+    target_compile_features(docs_embedder PRIVATE c_std_23)
+else()
+    target_compile_options(docs_embedder PRIVATE $<$<C_COMPILER_ID:Clang>:/clang:-std=c23>)
+endif()
+
+# Link against Python headers (Namespace changed to 'Python' to match parent)
 # Use 'PRIVATE' for the link, but 'INTERFACE' for the include so parent projects get the headers
-target_link_libraries(docs_embedder PRIVATE Python3::Module)
+target_link_libraries(docs_embedder PRIVATE Python::Module)
 
 # Export the include directory so the parent project can #include "docs_embedder.h"
-target_include_directories(docs_embedder 
-    PUBLIC 
+target_include_directories(docs_embedder
+    PUBLIC
         # Path for the library itself and parent projects
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
